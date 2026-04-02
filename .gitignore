@@ -1,0 +1,16 @@
+# Environment
+.env
+
+# Data files (too large for Git)
+data/raw/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+*.egg-info/
+
+# OS
+.DS_Store
+Thumbs.db
