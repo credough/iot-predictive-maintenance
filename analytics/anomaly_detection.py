@@ -29,7 +29,7 @@ def fetch_sensor_readings() -> pd.DataFrame:
 
 
 def compute_rolling_zscore(df: pd.DataFrame) -> pd.DataFrame:
-    df = df.sort_values(["machine_key", "sensor_key", "reading_timestamp"])
+    df = df.sort_values(["machine_key", "sensor_key", "reading_timestamp"]).copy()
 
     def zscore_group(group: pd.DataFrame) -> pd.DataFrame:
         values = group["sensor_value"]
@@ -37,18 +37,22 @@ def compute_rolling_zscore(df: pd.DataFrame) -> pd.DataFrame:
         rolling_std = values.rolling(window=ROLLING_WINDOW, min_periods=1).std()
         rolling_std = rolling_std.replace(0, np.nan)
 
-        group = group.copy()
-        group["rolling_mean"] = rolling_mean
-        group["rolling_std"] = rolling_std
-        group["z_score"] = (values - rolling_mean) / rolling_std
-        return group
+        result = group.copy()
+        result["rolling_mean"] = rolling_mean
+        result["rolling_std"] = rolling_std
+        result["z_score"] = (values - rolling_mean) / rolling_std
+        return result
 
-    df = df.groupby(
+    # Compute z-scores on non-grouping columns only
+    zscore_cols = df.groupby(
         ["machine_key", "sensor_key"], group_keys=False
-    ).apply(zscore_group, include_groups=False)
+    ).apply(zscore_group, include_groups=False).reset_index(drop=True)
 
-    # Restore grouping columns lost by include_groups=False
-    df = df.reset_index()
+    # Re-attach the grouping columns from the sorted original
+    df = df.reset_index(drop=True)
+    df["rolling_mean"] = zscore_cols["rolling_mean"]
+    df["rolling_std"] = zscore_cols["rolling_std"]
+    df["z_score"] = zscore_cols["z_score"]
 
     return df
 
